@@ -2640,7 +2640,7 @@ void LoadAccum(void)
 
 void CpCharVal(int val)
 {
-    ot("cp\t#(");
+    ot("cp\t+(");
     outdec(val);
     outstr("% 256)\n");
 }
