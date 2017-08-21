@@ -62,6 +62,7 @@ static void            AddPreProc(arg_t *arg, char *);
 static void            AddPreProcIncPath(arg_t *arg, char *);
 static void            AddToArgs(arg_t *arg, char *);
 static void            AddToArgsQuoted(arg_t *arg, char *);
+static void            AddToArgsQuotedFull(arg_t *argument, char *arg);
 static void            AddAppmake(arg_t *arg, char *);
 static void            AddLinkLibrary(arg_t *arg, char *);
 static void            AddLinkSearchPath(arg_t *arg, char *);
@@ -197,9 +198,11 @@ static char           *zccopt = NULL;       /* Text to append to zcc_opt.def */
 static char           *c_subtype = NULL;
 static char           *c_clib = NULL;
 static int             c_startup = -2;
+static int             c_startupoffset = -1;
 static int             c_nostdlib = 0;
 static int             mz180 = 0;
 static int             mr2k = 0;
+static int             mz80_zxn = 0;
 static int             c_nocrt = 0;
 static char           *c_crt_incpath = NULL;
 static int             processing_user_command_line_arg = 0;
@@ -364,7 +367,7 @@ static arg_t  config[] = {
 	{ "COPTEXE", 0, SetStringConfig, &c_copt_exe, NULL, "" },
 	{ "COPYCMD", 0, SetStringConfig, &c_copycmd, NULL, "" },
 
-	{ "INCPATH", 0, SetStringConfig, &c_incpath, NULL, "", "-I\"DESTDIR/include\" " },
+	{ "INCPATH", 0, SetStringConfig, &c_incpath, NULL, "", "-isystem\"DESTDIR/include\" " },
 	{ "CLANGINCPATH", 0, SetStringConfig, &c_clangincpath, NULL, "", "-isystem \"DESTDIR/include/_DEVELOPMENT/clang\" " },
 	{ "M4OPTS", 0, SetStringConfig, &c_m4opts, NULL, "", " -I \"DESTDIR/src/m4\" " },
 	{ "COPTRULES1", 0, SetStringConfig, &c_coptrules1, NULL, "", "\"DESTDIR/lib/z80rules.1\"" },
@@ -413,6 +416,7 @@ static arg_t     myargs[] = {
 	{ "specs", AF_BOOL_TRUE, SetBoolean, &c_print_specs, NULL, "Print out compiler specs" },
 	{ "asm", AF_MORE, SetString, &c_assembler_type, NULL, "Set the assembler type from the command line (z80asm, mpm, asxx, vasm, binutils)" },
 	{ "compiler", AF_MORE, SetString, &c_compiler_type, NULL, "Set the compiler type from the command line (sccz80, sdcc)" },
+    { "mz80-zxn", AF_BOOL_TRUE, SetBoolean, &mz80_zxn, NULL, "Target the zx next z80 cpu" },
     { "mz180", AF_BOOL_TRUE, SetBoolean, &mz180, NULL, "Target the z180 cpu" },
 	{ "mr2k", AF_BOOL_TRUE, SetBoolean, &mr2k, NULL, "Target the Rabbit 2/3000 cpu" },
 	{ "crt0", AF_MORE, SetString, &c_crt0, NULL, "Override the crt0 assembler file to use" },
@@ -426,6 +430,7 @@ static arg_t     myargs[] = {
 	{ "pragma-include",AF_MORE,PragmaInclude,NULL, NULL, "Process include file containing pragmas" },
 	{ "subtype", AF_MORE, SetString, &c_subtype, NULL, "Set the target subtype" },
 	{ "clib", AF_MORE, SetString, &c_clib, NULL, "Set the target clib type" },
+    { "startupoffset", AF_MORE, SetNumber, &c_startupoffset, NULL, "Startup offset value (internal)" },
 	{ "startup", AF_MORE, SetNumber, &c_startup, NULL, "Set the startup type" },
 	{ "zorg", AF_MORE, SetNumber, &c_zorg, NULL, "Set the origin (only certain targets)" },
 	{ "nostdlib", AF_BOOL_TRUE, SetBoolean, &c_nostdlib, NULL, "If set ignore INCPATH, STARTUPLIB" },
@@ -448,6 +453,8 @@ static arg_t     myargs[] = {
 	{ "D", AF_MORE, AddPreProc, NULL, NULL, "Define a preprocessor option" },
 	{ "U", AF_MORE, AddPreProc, NULL, NULL, "Undefine a preprocessor option" },
 	{ "I", AF_MORE, AddPreProcIncPath, NULL, NULL, "Add an include directory for the preprocessor" },
+	{ "iquote", AF_MORE, AddToArgsQuotedFull, &cpparg, NULL, "Add a quoted include path for the preprocessor" },
+	{ "isystem", AF_MORE, AddToArgsQuotedFull, &cpparg, NULL, "Add a system include path for the preprocessor" },
 	{ "L", AF_MORE, AddLinkSearchPath, NULL, NULL, "Add a library search path" },
 	{ "l", AF_MORE, AddLinkLibrary, NULL, NULL, "Add a library" },
 	{ "O", AF_MORE, SetNumber, &peepholeopt, NULL, "Set the peephole optimiser setting for copt" },
@@ -479,6 +486,47 @@ static arg_t     myargs[] = {
 	{ "", 0, NULL, NULL }
 };
 
+enum {
+    CPU_MAP_TOOL_Z80ASM = 0,
+    CPU_MAP_TOOL_SCCZ80,
+    CPU_MAP_TOOL_ZSDCC,
+    CPU_MAP_TOOL_SIZE
+};
+
+struct cpu_map_s {
+    char *tool[CPU_MAP_TOOL_SIZE];
+};
+
+typedef struct cpu_map_s cpu_map_t;
+
+enum {
+    CPU_TYPE_Z80 = 0,
+    CPU_TYPE_Z80_ZXN,
+    CPU_TYPE_Z180,
+    CPU_TYPE_R2K,
+    CPU_TYPE_SIZE
+};
+
+cpu_map_t cpu_map[CPU_TYPE_SIZE] = {
+    { "--cpu=z80",     "-mz80" , "-mz80" },                     // CPU_TYPE_Z80     : CPU_MAP_TOOL_Z80ASM, CPU_MAP_TOOL_SCCZ80, CPU_MAP_TOOL_ZSDCC
+    { "--cpu=z80-zxn", "-mz80",  "-mz80" },                     // CPU_TYPE_Z80_ZXN : CPU_MAP_TOOL_Z80ASM, CPU_MAP_TOOL_SCCZ80, CPU_MAP_TOOL_ZSDCC
+    { "--cpu=z180",    "-mz180", "-mz180 -portmode=z180" },     // CPU_TYPE_Z180    : CPU_MAP_TOOL_Z80ASM, CPU_MAP_TOOL_SCCZ80, CPU_MAP_TOOL_ZSDCC
+    { "--cpu=r2k",     "-mr2k",  "-mr2k" },                     // CPU_TYPE_R2K     : CPU_MAP_TOOL_Z80ASM, CPU_MAP_TOOL_SCCZ80, CPU_MAP_TOOL_ZSDCC
+};
+
+char *select_cpu(int n)
+{
+    if (mz180)
+        return cpu_map[CPU_TYPE_Z180].tool[n];
+
+    if (mr2k)
+        return cpu_map[CPU_TYPE_R2K].tool[n];
+
+    if (mz80_zxn)
+        return cpu_map[CPU_TYPE_Z80_ZXN].tool[n];
+
+    return cpu_map[CPU_TYPE_Z80].tool[n];
+}
 
 struct pragma_m4_s {
     int         seen;
@@ -490,6 +538,7 @@ typedef struct pragma_m4_s pragma_m4_t;
 
 pragma_m4_t important_pragmas[] = {
     { 0, "startup", "__STARTUP" },
+    { 0, "startupoffset", "__STARTUP_OFFSET" },
     { 0, "CRT_INCLUDE_DRIVER_INSTANTIATION", "M4__CRT_INCLUDE_DRIVER_INSTANTIATION" },
     { 0, "CRT_ITERM_EDIT_BUFFER_SIZE", "M4__CRT_ITERM_EDIT_BUFFER_SIZE" },
     { 0, "CRT_OTERM_FZX_DRAW_MODE", "M4__CRT_OTERM_FZX_DRAW_MODE" },
@@ -640,9 +689,9 @@ int linkthem(char *linker)
 
 	if (compileonly)
     {
-		len = offs = zcc_asprintf(&temp, "%s %s --output=\"%s\" %s",
-			linker,
-            mz180 ? "--cpu=z180" : "",
+        len = offs = zcc_asprintf(&temp, "%s %s --output=\"%s\" %s",
+            linker,
+            select_cpu(CPU_MAP_TOOL_Z80ASM),
 			outputfile,
 			linkargs);
 	}
@@ -651,7 +700,7 @@ int linkthem(char *linker)
 		len = offs = zcc_asprintf(&temp, "%s %s %s -d %s %s -x\"%s\"",
 			linker,
 			(z80verbose && IS_ASM(ASM_Z80ASM)) ? "-v" : "",
-            mz180 ? "--cpu=z180" : "",
+            select_cpu(CPU_MAP_TOOL_Z80ASM),
 			IS_ASM(ASM_Z80ASM) ? "" : "-Mo ",
 			linkargs,
 			outputfile);
@@ -667,7 +716,7 @@ int linkthem(char *linker)
 
         len = offs = zcc_asprintf(&temp, "%s %s -b -d %s -o%s\"%s\" %s%s%s%s%s%s%s%s%s",
             linker,
-            mz180 ? "--cpu=z180" : "",
+            select_cpu(CPU_MAP_TOOL_Z80ASM),
             IS_ASM(ASM_Z80ASM) ? "" : "-Mo ",
             linker_output_separate_arg ? " " : "",
             outputfile,
@@ -1732,7 +1781,7 @@ void BuildAsmLine(char *dest, size_t destlen, char *prefix)
 		offs += snprintf(dest + offs, destlen - offs, "%s%s%s%s",
 			prefix,
 			z80verbose ? " -v " : " ",
-            mz180 ? " --cpu=z180 " : " ",
+            select_cpu(CPU_MAP_TOOL_Z80ASM),
 			symbolson ? " -s " : " ");
 	}
 
@@ -1828,7 +1877,6 @@ static char *expand_macros(char *arg)
 	char  *value = muststrdup(arg);
 	char   varname[300];
 
-
 	start = value;
 	while ((ptr = strchr(start, '$')) != NULL) {
 		if (*(ptr + 1) == '{') {
@@ -1855,6 +1903,7 @@ static char *expand_macros(char *arg)
 
 	nval = replace_str(value, "DESTDIR", c_install_dir);
 	free(value);
+
 	return nval;
 }
 
@@ -1907,6 +1956,11 @@ void AddToArgs(arg_t *argument, char *arg)
 void AddToArgsQuoted(arg_t *argument, char *arg)
 {
     BuildOptionsQuoted(argument->data, arg + 3);
+}
+
+void AddToArgsQuotedFull(arg_t *argument, char *arg)
+{
+    BuildOptionsQuoted(argument->data, arg);
 }
 
 void AddPreProcIncPath(arg_t *argument, char *arg)
@@ -1972,15 +2026,24 @@ void BuildOptionsQuoted(char **list, char *arg)
 {
     char           *val;
     char           *orig = *list;
+    int             len = -1;
 
-    if (((strncmp(arg, "-I", 2) == 0) || (strncmp(arg, "-L", 2) == 0)) && (strchr(arg, '"') == NULL) && (strchr(arg, '\'') == NULL))
+    if ((strchr(arg, '"') == NULL) && (strchr(arg, '\'') == NULL))
     {
-        zcc_asprintf(&val, "%s%.2s\"%s\" ", orig ? orig : "", arg, arg+2);
+        if ((strncmp(arg, "-I", 2) == 0) || (strncmp(arg, "-L", 2) == 0))
+            len = 2;
+        else if (strncmp(arg, "-iquote", 7) == 0)
+            len = 7;
+        else if (strncmp(arg, "-isystem", 8) == 0)
+            len = 8;
+    }
 
+    if (len > 0)
+    {
+        zcc_asprintf(&val, "%s%.*s\"%s\" ", orig ? orig : "", len, arg, arg+len);
         free(orig);
         *list = val;
-    }
-    else
+    } else
         BuildOptions(list, arg);
 }
 
@@ -2256,6 +2319,10 @@ static void configure_misc_options()
 		write_zcc_defined("startup", c_startup, 0);
 	}
 
+    if (c_startupoffset >= 0) {
+        write_zcc_defined("startupoffset", c_startupoffset, 0);
+    }
+
 	if (linkargs == NULL) {
 		linkargs = muststrdup("");
 	}
@@ -2364,7 +2431,7 @@ static void configure_compiler()
 	if ((strcmp(c_compiler_type, "clang") == 0) || (strcmp(c_compiler_type, "sdcc") == 0)) {
 		compiler_type = CC_SDCC;
 		snprintf(buf, sizeof(buf), "%s --no-optsdcc-in-asm --c1mode --emit-externs %s %s %s ", \
-            (mz180 ? "-mz180 -portmode=z180" : ( mr2k ? "-mr2k" : "-mz80")), \
+            select_cpu(CPU_MAP_TOOL_ZSDCC), \
             (sdcc_signed_char ? "--fsigned-char" : ""), \
             (c_code_in_asm ? "" : "--no-c-code-in-asm"), \
             (opt_code_size ? "--opt-code-size" : ""));
@@ -2386,7 +2453,7 @@ static void configure_compiler()
 		BuildOptions(&cpparg, preprocarg);
 		/* Indicate to sccz80 what assembler we want */
 		snprintf(buf, sizeof(buf), "-asm=%s -ext=opt %s", c_assembler_type,
-		            (mz180 ? "-mz180" : ( mr2k ? "-mr2k" : "-mz80")));
+		            select_cpu(CPU_MAP_TOOL_SCCZ80));
 
 		add_option_to_compiler(buf);
 		if (sccz80arg) {

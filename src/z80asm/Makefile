@@ -32,8 +32,9 @@ TARGET =		z80asm$(EXE)
 MSVC_TARGET =	../../win32/Debug/$(TARGET)
 
 OPT = -O3
+STD = -std=gnu99
 LOCAL_LIB :=	lib
-LOCAL_CFLAGS +=	-MMD -I. -I$(LOCAL_LIB) -It -g -Wall -ftabstop=4 -std=c99 -D_GNU_SOURCE $(OPT)
+LOCAL_CFLAGS +=	-MMD -I. -I$(LOCAL_LIB) -It -g -Wall -ftabstop=4 $(STD) $(OPT)
 
 #------------------------------------------------------------------------------
 # main
@@ -45,7 +46,10 @@ $(TARGET): ../config.h $(OBJS)
 	$(CC) $(LOCAL_CFLAGS) $(CFLAGS) -o $(TARGET) $(OBJS) $(LDFLAGS)
 
 ../config.h:
-	touch $@
+	@echo \#define PREFIX \"/usr/local/share/z88dk\" 				 > $@
+	@echo \#define UNIX 1											>> $@
+	@echo \#define EXEC_PREFIX \"\"									>> $@
+	@echo \#define Z88DK_VERSION \"build-$(shell date +%Y%m%d)\"	>> $@
 
 %.o: %.c
 	$(CC) $(LOCAL_CFLAGS) $(CFLAGS) -c -o $@ $<

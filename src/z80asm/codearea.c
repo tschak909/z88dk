@@ -567,7 +567,7 @@ void fwrite_codearea(char *filename, FILE **pbinfile, FILE **prelocfile)
 			cur_addr = section->addr;
 
 		/* bytes from this section */
-		if (section_size > 0 || section->origin >= 0)
+		if (section_size > 0 || section->origin >= 0 || section->section_split)
 		{
 			if (section->name && *section->name)					/* only if section name not empty */
 			{
@@ -671,7 +671,7 @@ void read_origin(FILE* file, Section *section) {
 		section->section_split = TRUE;
 	}
 	else {
-		section->section_split = FALSE;
+		// ignore all other values
 	}
 }
 

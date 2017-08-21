@@ -55,11 +55,13 @@ static void option_define( char *symbol );
 static void option_make_lib( char *library );
 static void option_use_lib( char *library );
 static void option_cpu_z80(void);
+static void option_cpu_z80_zxn(void);
 static void option_cpu_z180(void);
 static void option_cpu_r2k(void);
 static void option_cpu_r3k(void);
 static void option_appmake_zx(void);
 static void option_appmake_zx81(void);
+static void option_filler( char *filler_arg );
 
 static void process_options( int *parg, int argc, char *argv[] );
 static void process_files( int arg, int argc, char *argv[] );
@@ -467,14 +469,14 @@ static void exit_copyright( void )
 /*-----------------------------------------------------------------------------
 *   Option functions called from Opts table
 *----------------------------------------------------------------------------*/
-static void option_origin( char *origin )
+int number_arg(char *arg)
 {
 	char *end;
-	char *p = origin;
-	long lorigin;
+	char *p = arg;
+	long lval;
 	int radix;
 	char suffix = '\0';
-
+	
 	if (p[0] == '$') {
 		p++;
 		radix = 16;
@@ -491,11 +493,29 @@ static void option_origin( char *origin )
 		radix = 10;
 	}
 
-	lorigin = strtol(p, &end, radix);
-	if (*end != suffix || errno == ERANGE || lorigin < INT_MIN || lorigin > INT_MAX)
+	lval = strtol(p, &end, radix);
+	if (*end != suffix || errno == ERANGE || lval < 0 || lval > INT_MAX)
+		return -1;
+	else
+		return (int)lval;
+}
+
+static void option_origin( char *origin )
+{
+	int value = number_arg(origin);
+	if (value < 0 || value > 0xFFFF)
 		error_invalid_org_option(origin);
 	else
-		set_origin_option((int)lorigin);
+		set_origin_option(value);
+}
+
+static void option_filler( char *filler_arg )
+{
+	int value = number_arg(filler_arg);
+	if (value < 0 || value > 0xFF)
+		error_invalid_filler_option(filler_arg);
+	else
+		opts.filler = value;
 }
 
 static void option_define( char *symbol )
@@ -536,6 +556,11 @@ static void option_cpu_z80(void)
 	opts.cpu = CPU_Z80;
 }
 
+static void option_cpu_z80_zxn(void)
+{
+	opts.cpu = CPU_Z80_ZXN;
+}
+
 static void option_cpu_z180(void)
 {
 	opts.cpu = CPU_Z180;
@@ -543,12 +568,35 @@ static void option_cpu_z180(void)
 
 static void option_cpu_r2k(void)
 {
-    opts.cpu = CPU_RCM2000;
+    opts.cpu = CPU_R2K;
 }
 
 static void option_cpu_r3k(void)
 {
-	opts.cpu = CPU_RCM3000;
+	opts.cpu = CPU_R3K;
+}
+
+void define_assembly_defines()
+{
+	switch (opts.cpu) {
+	case CPU_Z80:
+	    define_static_def_sym("__CPU_Z80__", 1);
+		break;
+	case CPU_Z80_ZXN:
+	    define_static_def_sym("__CPU_Z80_ZXN__", 1);
+		break;
+	case CPU_Z180:
+	    define_static_def_sym("__CPU_Z180__", 1);
+		break;
+	case CPU_R2K:
+	    define_static_def_sym("__CPU_R2K__", 1);
+		break;
+	case CPU_R3K:
+	    define_static_def_sym("__CPU_R3K__", 1);
+		break;
+	default:
+		assert(0);
+	}
 }
 
 /*-----------------------------------------------------------------------------

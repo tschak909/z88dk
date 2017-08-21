@@ -115,7 +115,6 @@ int main()
     in_wait_nokey();
 
     printf("Key pressed is %c (0x%02X)\n", c, c);
-    in_wait_nokey();
   }
 }
 
@@ -135,11 +134,13 @@ pressed using in_wait_key(), then read the key using in_inkey(), then wait for
 the key to be released using in_wait_nokey() before showing the result.
 
 For normal keys the in_inkey() function returns the ASCII code of the key being
-pressed. It returns 0 if either of the shift keys is pressed, or if it's called
-when no keys are pressed. If you manage to press two or more keys
-simultaneously, that makes in_inkey() return 0 as well. These limitations mean
-in_inkey() is only useful in certain situations. For an accurate understanding
-of what's happening on the keyboard we need to turn to _scancodes_.
+pressed.  If no keys are pressed, it returns 0.  If more than one key is pressed
+it also returns 0.  The shift keys, if pressed on their own, do not register and
+also cause in_inkey() to return 0.  However, if the shift keys are pressed in
+combination with regular keys, the shifted ascii value will be returned.
+
+These limitations mean in_inkey() is only useful in certain situations. For an
+accurate picture of what's happening on the keyboard we need to turn to _scancodes_.
 
 ## Scancodes
 
@@ -416,3 +417,7 @@ zcc +zx -vn -startup=31 -clib=sdcc_iy joy_border.c -o joy_border -create-app
 If your emulator does not map the kempston joystick to your controller or to
 the keyboard, try using `in_stick_sinclair1()` in place of `in_stick_kempston()`.
 The Sinclair sticks map themselves to the number keys on the keyboard.
+
+### Where To Go From Here
+
+[... continue to Part 5: Using multiple files](https://github.com/z88dk/z88dk/blob/master/doc/ZXSpectrumZSDCCnewlib_05_MultipleFiles.md)
