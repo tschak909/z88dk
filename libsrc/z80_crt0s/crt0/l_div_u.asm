@@ -62,4 +62,4 @@ PUBLIC     L_DIVENTRY
         ex      de,hl
         ret
 
-DEFC L_DIVENTRY = # entry - l_div_u
+DEFC L_DIVENTRY = +( entry - l_div_u)

@@ -2482,3 +2482,36 @@
 	ld	hl,%2	;const
 	ld	(%1),hl
 	ld	hl,%3
+
+	push	de
+	ld	hl,%1
+	add	hl,sp
+	call	l_gint	;
+	pop	de
+=
+	ex	de,hl
+	ld	hl,%1
+	add	hl,sp
+	call	l_gint
+
+	and	%1
+	ld	l,a
+	ld	h,0
+	ld	a,h
+	or	l
+=
+	and	%1
+	ld	l,a
+	ld	h,0
+
+	ld	l,(hl)
+	ld	h,0
+	ld	a,l
+	and	%2
+	ld	l,a
+	ld	h,0
+=
+	ld	a,(hl)
+	and	%2
+	ld	l,a
+	ld	h,0
