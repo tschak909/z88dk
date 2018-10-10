@@ -10,7 +10,18 @@
 
 TARGET		= libclibrary.a
 
-include ../../Make.common
+ifeq ($(OS),Windows_NT)
+  EXE 		:= .exe
+else
+  EXE 		:= $(EXESUFFIX)
+endif
+
+# UNIXem is needed in both Windows_NT and in a MinGW build in Unix
+ifeq ($(EXE),.exe)
+  UNIXem_CFLAGS	:= -I../../../ext/UNIXem/include
+  UNIXem_OBJS	:= ../../../ext/UNIXem/src/glob.o \
+				   ../../../ext/UNIXem/src/dirent.o
+endif
 
 CC		= gcc
 CFLAGS		+= -g -Wall -Wextra -MMD -I. -I../../common -I../../../ext/uthash/src \

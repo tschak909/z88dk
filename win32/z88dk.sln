@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 14
-VisualStudioVersion = 14.0.25420.1
+# Visual Studio 15
+VisualStudioVersion = 15.0.28010.2003
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "z80nm", "z80nm\z80nm.vcxproj", "{E3CAFDD4-FBE2-4E7E-AB20-816C8B257F6B}"
 	ProjectSection(ProjectDependencies) = postProject
@@ -93,6 +93,8 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "z80asm-common", "z80asm-common\z80asm-common.vcxproj", "{00BCE225-FE40-4C33-B15E-C8FB6ADA74EB}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "regex", "regex\regex.vcxproj", "{BD9576EB-A8C0-4E05-ACE3-563277AB90BC}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "z80asm-test", "z80asm-test\z80asm-test.vcxproj", "{788CD22B-A238-40A4-9CA4-E34122E9C4B5}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -286,6 +288,14 @@ Global
 		{BD9576EB-A8C0-4E05-ACE3-563277AB90BC}.Release|Win32.Build.0 = Release|Win32
 		{BD9576EB-A8C0-4E05-ACE3-563277AB90BC}.Release|x64.ActiveCfg = Release|x64
 		{BD9576EB-A8C0-4E05-ACE3-563277AB90BC}.Release|x64.Build.0 = Release|x64
+		{788CD22B-A238-40A4-9CA4-E34122E9C4B5}.Debug|Win32.ActiveCfg = Debug|Win32
+		{788CD22B-A238-40A4-9CA4-E34122E9C4B5}.Debug|Win32.Build.0 = Debug|Win32
+		{788CD22B-A238-40A4-9CA4-E34122E9C4B5}.Debug|x64.ActiveCfg = Debug|x64
+		{788CD22B-A238-40A4-9CA4-E34122E9C4B5}.Debug|x64.Build.0 = Debug|x64
+		{788CD22B-A238-40A4-9CA4-E34122E9C4B5}.Release|Win32.ActiveCfg = Release|Win32
+		{788CD22B-A238-40A4-9CA4-E34122E9C4B5}.Release|Win32.Build.0 = Release|Win32
+		{788CD22B-A238-40A4-9CA4-E34122E9C4B5}.Release|x64.ActiveCfg = Release|x64
+		{788CD22B-A238-40A4-9CA4-E34122E9C4B5}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

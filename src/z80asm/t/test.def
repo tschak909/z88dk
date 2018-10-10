@@ -1,0 +1,1 @@
+DIAG("test_redirect"); void test_redirect(); test_redirect();
